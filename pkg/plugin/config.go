@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/spf13/pflag"
 	networking "k8s.io/api/networking/v1"
-	"log"
 	"net/url"
 	"regexp"
 	"strings"
@@ -78,16 +77,6 @@ func CreateOptions(flags *CliFlags) *Options {
 		return nil
 	}
 
-	matches, err := regexp.MatchString("^([a-zA-Z0-9-_\\*]+\\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\\.[a-zA-Z]{2,11}?$", *flags.Host)
-	if err != nil {
-		log.Print(err)
-		return nil
-	}
-	if !matches {
-		fmt.Println("Invalid host supplied")
-		return nil
-	}
-
 	var pathType networking.PathType
 	switch strings.ToLower(*flags.PathType) {
 	case "exact":
@@ -103,16 +92,6 @@ func CreateOptions(flags *CliFlags) *Options {
 		fmt.Println("Invalid path type supplied")
 		return nil
 		break
-	}
-
-	if *flags.PortNumber < 0 || *flags.PortNumber >= 1<<16 {
-		fmt.Println("Invalid port supplied")
-		return nil
-	}
-
-	if *flags.PortNumber == 0 {
-		fmt.Println("No port supplied")
-		return nil
 	}
 
 	if (*flags.Add || *flags.Update) && *flags.Delete {
@@ -133,6 +112,28 @@ func CreateOptions(flags *CliFlags) *Options {
 	if *flags.IngressName == "" {
 		fmt.Println("No ingress name supplied.")
 		return nil
+	}
+
+	if !*flags.Delete {
+		matches, err := regexp.MatchString("^([a-zA-Z0-9-_\\*]+\\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\\.[a-zA-Z]{2,11}?$", *flags.Host)
+		if err != nil {
+			fmt.Print(err)
+			return nil
+		}
+		if !matches {
+			fmt.Println("Invalid host supplied")
+			return nil
+		}
+
+		if *flags.PortNumber < 0 || *flags.PortNumber >= 1<<16 {
+			fmt.Println("Invalid port supplied")
+			return nil
+		}
+
+		if *flags.PortNumber == 0 {
+			fmt.Println("No port supplied")
+			return nil
+		}
 	}
 
 	return &Options{

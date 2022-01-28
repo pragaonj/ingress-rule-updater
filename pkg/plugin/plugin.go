@@ -56,13 +56,13 @@ func RunPlugin(configFlags *genericclioptions.ConfigFlags, cf *CliFlags) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Added rule for backend service: %s", options.ServiceName)
+		fmt.Printf("Added rule for backend service: %s\n", options.ServiceName)
 	} else if options.Delete {
 		err := ingressService.RemoveRule(ctx, options.ServiceName)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Removed rule for backend service: %s", options.ServiceName)
+		fmt.Printf("Removed rule for backend service: %s\n", options.ServiceName)
 	}
 
 	return nil
