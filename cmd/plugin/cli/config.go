@@ -1,7 +1,8 @@
-package plugin
+package cli
 
 import (
 	"fmt"
+	"github.com/pragaonj/ingress-rule-updater/pkg/ingress_rule"
 	"github.com/spf13/pflag"
 	networking "k8s.io/api/networking/v1"
 	"net/url"
@@ -10,52 +11,28 @@ import (
 )
 
 type CliFlags struct {
-	IngressName *string
 	Host        *string
 	Path        *string
-	Add         *bool
-	Delete      *bool
-	Update      *bool
 	PathType    *string
 	ServiceName *string
 	PortNumber  *int
 }
 
-type Options struct {
-	IngressName string
-	Host        string
-	Path        string
-	Add         bool
-	Delete      bool
-	Update      bool
-	PathType    networking.PathType
-	ServiceName string
-	PortNumber  int32
-}
-
 func AddOptionFlags(flagSet *pflag.FlagSet) *CliFlags {
 	cf := &CliFlags{
-		IngressName: stringptr(""),
 		Host:        stringptr(""),
 		Path:        stringptr(""),
-		Add:         boolptr(false),
-		Delete:      boolptr(false),
-		Update:      boolptr(false),
 		PathType:    stringptr(""),
 		ServiceName: stringptr(""),
 		PortNumber:  intptr(0),
 		//todo add support for PortName as alternative to PortNumber
 	}
 
-	flagSet.StringVar(cf.IngressName, "ingress-name", "", "Ingress name")
 	flagSet.StringVar(cf.Host, "host", "", "Optional host e.g. foo.example.com, *.example.com, example.com")
 	flagSet.StringVar(cf.Path, "path", "/", "Optional path")
 	flagSet.StringVar(cf.PathType, "path-type", "prefix", "Path type; possible values: \"Prefix\", \"Exact\", \"ImplementationSpecific\"; defaults to \"prefix\"")
-	flagSet.StringVar(cf.ServiceName, "service-name", "", "Name of the backend service (must be in the same namespace)")
+	flagSet.StringVar(cf.ServiceName, "service", "", "Name of the backend service (must be in the same namespace)")
 	flagSet.IntVar(cf.PortNumber, "port", 0, "Port number of backend service")
-	flagSet.BoolVar(cf.Add, "add", false, "Add new rule")
-	flagSet.BoolVar(cf.Update, "update", false, "Update existing rule")
-	flagSet.BoolVar(cf.Delete, "delete", false, "Delete existing rule")
 
 	return cf
 }
@@ -66,11 +43,8 @@ func stringptr(val string) *string {
 func intptr(val int) *int {
 	return &val
 }
-func boolptr(val bool) *bool {
-	return &val
-}
 
-func CreateOptions(flags *CliFlags) *Options {
+func CreateOptions(flags *CliFlags, command string, ingressName string) *ingress_rule.Options {
 	pathUri, err := url.ParseRequestURI(*flags.Path)
 	if err != nil {
 		fmt.Println("Invalid path supplied")
@@ -94,13 +68,9 @@ func CreateOptions(flags *CliFlags) *Options {
 		break
 	}
 
-	if (*flags.Add || *flags.Update) && *flags.Delete {
-		fmt.Println("Invalid combination of operations supplied. delete cannot be used in combination with update or add")
-		return nil
-	}
-
-	if !*flags.Add && !*flags.Update && !*flags.Delete {
-		fmt.Println("No operation supplied.")
+	if strings.ToLower(command) != "set" && strings.ToLower(command) != "delete" {
+		fmt.Printf("Error: unknown command \"%s\" for \"ingress-rule\"\n", command)
+		fmt.Printf("Allowed commands are \"set\" and \"delete\"\n")
 		return nil
 	}
 
@@ -109,20 +79,22 @@ func CreateOptions(flags *CliFlags) *Options {
 		return nil
 	}
 
-	if *flags.IngressName == "" {
-		fmt.Println("No ingress name supplied.")
+	if ingressName == "" {
+		fmt.Printf("Error: no ingress name supplied\n")
 		return nil
 	}
 
-	if !*flags.Delete {
-		matches, err := regexp.MatchString("^([a-zA-Z0-9-_\\*]+\\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\\.[a-zA-Z]{2,11}?$", *flags.Host)
-		if err != nil {
-			fmt.Print(err)
-			return nil
-		}
-		if !matches {
-			fmt.Println("Invalid host supplied")
-			return nil
+	if strings.ToLower(command) == "set" {
+		if *flags.Host != "" {
+			matches, err := regexp.MatchString("^([a-zA-Z0-9-_\\*]+\\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\\.[a-zA-Z]{2,11}?$", *flags.Host)
+			if err != nil {
+				fmt.Print(err)
+				return nil
+			}
+			if !matches {
+				fmt.Println("Invalid host supplied")
+				return nil
+			}
 		}
 
 		if *flags.PortNumber < 0 || *flags.PortNumber >= 1<<16 {
@@ -136,13 +108,12 @@ func CreateOptions(flags *CliFlags) *Options {
 		}
 	}
 
-	return &Options{
-		IngressName: *flags.IngressName,
+	return &ingress_rule.Options{
+		IngressName: ingressName,
 		Host:        *flags.Host,
 		Path:        pathUri.Path,
-		Add:         *flags.Add,
-		Delete:      *flags.Delete,
-		Update:      *flags.Update,
+		Delete:      strings.ToLower(command) == "delete",
+		Set:         strings.ToLower(command) == "set",
 		PathType:    pathType,
 		ServiceName: *flags.ServiceName,
 		PortNumber:  int32(*flags.PortNumber),

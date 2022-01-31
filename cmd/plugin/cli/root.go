@@ -1,8 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
-	"github.com/pragaonj/ingress-rule-updater/pkg/plugin"
+	ingress_rule "github.com/pragaonj/ingress-rule-updater/pkg/ingress_rule"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -12,7 +13,7 @@ import (
 
 var (
 	KubernetesConfigFlags *genericclioptions.ConfigFlags
-	cf                    *plugin.CliFlags
+	cf                    *CliFlags
 )
 
 func RootCmd() *cobra.Command {
@@ -26,7 +27,17 @@ func RootCmd() *cobra.Command {
 			viper.BindPFlags(cmd.Flags())
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := plugin.RunPlugin(KubernetesConfigFlags, cf); err != nil {
+			if len(args) != 2 {
+				fmt.Println("Usage: <command> <ingress-name>\nWhere command is:\nset\ndelete")
+				return errors.New("invalid command line arguments")
+			}
+
+			options := CreateOptions(cf, args[0], args[1])
+			if options == nil {
+				return errors.New("invalid command line flags supplied")
+			}
+
+			if err := ingress_rule.RunPlugin(KubernetesConfigFlags, options); err != nil {
 				return err
 			}
 
@@ -39,7 +50,7 @@ func RootCmd() *cobra.Command {
 	KubernetesConfigFlags = genericclioptions.NewConfigFlags(false)
 	KubernetesConfigFlags.AddFlags(cmd.Flags())
 
-	cf = plugin.AddOptionFlags(cmd.Flags())
+	cf = AddOptionFlags(cmd.Flags())
 
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	return cmd

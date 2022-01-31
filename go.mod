@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/fatih/color v1.13.0
+	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1

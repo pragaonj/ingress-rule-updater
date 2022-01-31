@@ -1,4 +1,4 @@
-package plugin
+package service
 
 import (
 	"context"
@@ -41,21 +41,13 @@ func (i *IngressService) createIngress(ctx context.Context, ingressRule *network
 	return err
 }
 
-func (i *IngressService) deleteIngress(ctx context.Context, ingressname string) error {
-	err := i.kubeIngress.Delete(ctx, ingressname, metav1.DeleteOptions{})
-
-	return err
-}
-
-// todo add functionality to add a path to a rule
-
 // CreateIngressRule creates a new rule for an ingress.
 func CreateIngressRule(hostname string, path string, pathType networking.PathType, backendServiceName string, port int32) *networking.IngressRule {
 	return &networking.IngressRule{
 		Host: hostname,
 		IngressRuleValue: networking.IngressRuleValue{
 			HTTP: &networking.HTTPIngressRuleValue{
-				Paths: []networking.HTTPIngressPath{{ //todo add functionality to add a path to a rule right here
+				Paths: []networking.HTTPIngressPath{{
 					Path:     path,
 					PathType: &pathType,
 					Backend: networking.IngressBackend{
@@ -72,56 +64,83 @@ func CreateIngressRule(hostname string, path string, pathType networking.PathTyp
 	}
 }
 
+// AddRule configures a new backend rule.
+// If an ingress with the given name i.ingressName exists it will be updated, otherwise a new ingress will be created.
 func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.IngressRule) error {
-	if ingressRule.Host == "" {
-		return IngressSpecWithoutHostError
-	}
 	ingress, err := i.kubeIngress.Get(ctx, i.ingressName, metav1.GetOptions{})
 	if apperror.IsNotFound(err) {
-		//create new ingress if there is no ingress matching the criteria
+		// create new ingress if there is no ingress matching the criteria
 		return i.createIngress(ctx, ingressRule)
 	} else if err != nil {
 		return err
 	}
 
-	for _, rule := range ingress.Spec.Rules {
+	// check if there is already a rule for this host
+	for i1, rule := range ingress.Spec.Rules {
 		if rule.Host == ingressRule.Host {
-			return IngressRuleForHostAlreadyExists
+			for _, path := range rule.HTTP.Paths {
+				if path.Path == ingressRule.HTTP.Paths[0].Path &&
+					*path.PathType == *ingressRule.HTTP.Paths[0].PathType &&
+					path.Backend.Service.Name == ingressRule.HTTP.Paths[0].Backend.Service.Name &&
+					path.Backend.Service.Port == ingressRule.HTTP.Paths[0].Backend.Service.Port {
+					// exact same rule already exists
+					return ErrorIngressRuleAlreadyExists
+				}
+			}
+			// add rule to for existing host
+			ingress.Spec.Rules[i1].HTTP.Paths = append(ingress.Spec.Rules[i1].HTTP.Paths, ingressRule.HTTP.Paths[0])
+
+			// try update and return
+			_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
+			return err
 		}
 	}
 
+	// add new host rule if not exiting
 	ingress.Spec.Rules = append(ingress.Spec.Rules, *ingressRule)
 
 	_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
 	return err
 }
 
-//RemoveRule removes the rule by service name
-func (i *IngressService) RemoveRule(ctx context.Context, name string) error {
+// DeleteRule removes the rule by service name or service name and port.
+func (i *IngressService) DeleteRule(ctx context.Context, serviceName string, servicePort int32) error {
 	ingress, err := i.kubeIngress.Get(ctx, i.ingressName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	for index, rule := range ingress.Spec.Rules {
-		for _, path := range rule.HTTP.Paths {
-			if path.Backend.Service.Name == name {
-				if len(ingress.Spec.Rules) == 1 {
-					//delete ingress when the last rule is removed
-					return i.deleteIngress(ctx, ingress.Name)
-				}
+	var newRules []networking.IngressRule
+	changed := false
 
-				ingress.Spec.Rules = append(ingress.Spec.Rules[0:index], ingress.Spec.Rules[index+1:]...)
-
-				_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
-				return err
+	for _, rule := range ingress.Spec.Rules {
+		var newPaths []networking.HTTPIngressPath
+		for _, p := range rule.HTTP.Paths {
+			if !(p.Backend.Service.Name == serviceName && (servicePort == 0 || p.Backend.Service.Port.Number == servicePort)) {
+				newPaths = append(newPaths, p)
+			} else {
+				changed = true
 			}
+		}
+		if len(newPaths) > 0 {
+			rule.HTTP.Paths = newPaths
+			newRules = append(newRules, rule)
 		}
 	}
 
-	return IngressRuleNotFound
+	if len(newRules) == 0 {
+		// delete ingress when the last rule is removed
+		return i.kubeIngress.Delete(ctx, ingress.Name, metav1.DeleteOptions{})
+	}
+
+	if changed {
+		ingress.Spec.Rules = newRules
+		_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
+		return err
+	}
+
+	return ErrorIngressRuleNotFound
 }
 
-var IngressSpecWithoutHostError = errors.New("ingress spec without host is not supported at the moment")
-var IngressRuleForHostAlreadyExists = errors.New("ingress rule for host already exists")
-var IngressRuleNotFound = errors.New("could not find ingress rule for host")
+var ErrorIngressRuleAlreadyExists = errors.New("ingress rule already exists")
+var ErrorIngressRuleNotFound = errors.New("could not find ingress rule for service")
