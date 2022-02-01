@@ -66,13 +66,14 @@ func CreateIngressRule(hostname string, path string, pathType networking.PathTyp
 
 // AddRule configures a new backend rule.
 // If an ingress with the given name i.ingressName exists it will be updated, otherwise a new ingress will be created.
-func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.IngressRule) error {
+// Returns if the ingress has been created and an error
+func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.IngressRule) (created bool, err error) {
 	ingress, err := i.kubeIngress.Get(ctx, i.ingressName, metav1.GetOptions{})
 	if apperror.IsNotFound(err) {
 		// create new ingress if there is no ingress matching the criteria
-		return i.createIngress(ctx, ingressRule)
+		return true, i.createIngress(ctx, ingressRule)
 	} else if err != nil {
-		return err
+		return false, err
 	}
 
 	// check if there is already a rule for this host
@@ -84,7 +85,7 @@ func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.In
 					path.Backend.Service.Name == ingressRule.HTTP.Paths[0].Backend.Service.Name &&
 					path.Backend.Service.Port == ingressRule.HTTP.Paths[0].Backend.Service.Port {
 					// exact same rule already exists
-					return ErrorIngressRuleAlreadyExists
+					return false, ErrorIngressRuleAlreadyExists
 				}
 			}
 			// add rule to for existing host
@@ -92,7 +93,7 @@ func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.In
 
 			// try update and return
 			_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
-			return err
+			return false, err
 		}
 	}
 
@@ -100,14 +101,15 @@ func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.In
 	ingress.Spec.Rules = append(ingress.Spec.Rules, *ingressRule)
 
 	_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
-	return err
+	return false, err
 }
 
 // DeleteRule removes the rule by service name or service name and port.
-func (i *IngressService) DeleteRule(ctx context.Context, serviceName string, servicePort int32) error {
+// Returns if the resource has been deleted and an error
+func (i *IngressService) DeleteRule(ctx context.Context, serviceName string, servicePort int32) (deleted bool, err error) {
 	ingress, err := i.kubeIngress.Get(ctx, i.ingressName, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	var newRules []networking.IngressRule
@@ -130,16 +132,16 @@ func (i *IngressService) DeleteRule(ctx context.Context, serviceName string, ser
 
 	if len(newRules) == 0 {
 		// delete ingress when the last rule is removed
-		return i.kubeIngress.Delete(ctx, ingress.Name, metav1.DeleteOptions{})
+		return true, i.kubeIngress.Delete(ctx, ingress.Name, metav1.DeleteOptions{})
 	}
 
 	if changed {
 		ingress.Spec.Rules = newRules
 		_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
-		return err
+		return false, err
 	}
 
-	return ErrorIngressRuleNotFound
+	return false, ErrorIngressRuleNotFound
 }
 
 var ErrorIngressRuleAlreadyExists = errors.New("ingress rule already exists")

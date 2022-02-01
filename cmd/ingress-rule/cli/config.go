@@ -18,7 +18,10 @@ type CliFlags struct {
 	PortNumber  *int
 }
 
-func AddOptionFlags(flagSet *pflag.FlagSet) *CliFlags {
+const COMMAND_SET = "set"
+const COMMAND_DELETE = "delete"
+
+func AddOptionFlags(flagSet *pflag.FlagSet, command string) *CliFlags {
 	cf := &CliFlags{
 		Host:        stringptr(""),
 		Path:        stringptr(""),
@@ -28,10 +31,12 @@ func AddOptionFlags(flagSet *pflag.FlagSet) *CliFlags {
 		//todo add support for PortName as alternative to PortNumber
 	}
 
-	flagSet.StringVar(cf.Host, "host", "", "Optional host e.g. foo.example.com, *.example.com, example.com")
-	flagSet.StringVar(cf.Path, "path", "/", "Optional path")
-	flagSet.StringVar(cf.PathType, "path-type", "prefix", "Path type; possible values: \"Prefix\", \"Exact\", \"ImplementationSpecific\"; defaults to \"prefix\"")
-	flagSet.StringVar(cf.ServiceName, "service", "", "Name of the backend service (must be in the same namespace)")
+	if command == COMMAND_SET {
+		flagSet.StringVar(cf.Host, "host", "", "Set host e.g. foo.example.com, *.example.com, example.com (optional)")
+		flagSet.StringVar(cf.Path, "path", "/", "Set matching path (optional)")
+		flagSet.StringVar(cf.PathType, "path-type", "prefix", "Set matching type for path (optional); Accepts: \"Prefix\", \"Exact\", \"ImplementationSpecific\"; Defaults to \"Prefix\"")
+	}
+	flagSet.StringVar(cf.ServiceName, "service", "", "Name of backend service (must be in the same namespace as the ingress)")
 	flagSet.IntVar(cf.PortNumber, "port", 0, "Port number of backend service")
 
 	return cf
@@ -45,30 +50,7 @@ func intptr(val int) *int {
 }
 
 func CreateOptions(flags *CliFlags, command string, ingressName string) *ingress_rule.Options {
-	pathUri, err := url.ParseRequestURI(*flags.Path)
-	if err != nil {
-		fmt.Println("Invalid path supplied")
-		return nil
-	}
-
-	var pathType networking.PathType
-	switch strings.ToLower(*flags.PathType) {
-	case "exact":
-		pathType = networking.PathTypeExact
-		break
-	case "prefix":
-		pathType = networking.PathTypePrefix
-		break
-	case "implementationspecific":
-		pathType = networking.PathTypeImplementationSpecific
-		break
-	default:
-		fmt.Println("Invalid path type supplied")
-		return nil
-		break
-	}
-
-	if strings.ToLower(command) != "set" && strings.ToLower(command) != "delete" {
+	if command != COMMAND_SET && command != COMMAND_DELETE {
 		fmt.Printf("Error: unknown command \"%s\" for \"ingress-rule\"\n", command)
 		fmt.Printf("Allowed commands are \"set\" and \"delete\"\n")
 		return nil
@@ -84,7 +66,10 @@ func CreateOptions(flags *CliFlags, command string, ingressName string) *ingress
 		return nil
 	}
 
-	if strings.ToLower(command) == "set" {
+	path := ""
+	pathType := networking.PathTypePrefix
+
+	if command == COMMAND_SET {
 		if *flags.Host != "" {
 			matches, err := regexp.MatchString("^([a-zA-Z0-9-_\\*]+\\.)*[a-zA-Z0-9][a-zA-Z0-9-_]+\\.[a-zA-Z]{2,11}?$", *flags.Host)
 			if err != nil {
@@ -106,14 +91,37 @@ func CreateOptions(flags *CliFlags, command string, ingressName string) *ingress
 			fmt.Println("No port supplied")
 			return nil
 		}
+
+		pathUri, err := url.ParseRequestURI(*flags.Path)
+		if err != nil {
+			fmt.Println("Invalid path supplied")
+			return nil
+		}
+		path = pathUri.Path
+
+		switch strings.ToLower(*flags.PathType) {
+		case "exact":
+			pathType = networking.PathTypeExact
+			break
+		case "prefix":
+			pathType = networking.PathTypePrefix
+			break
+		case "implementationspecific":
+			pathType = networking.PathTypeImplementationSpecific
+			break
+		default:
+			fmt.Println("Invalid path type supplied")
+			return nil
+			break
+		}
 	}
 
 	return &ingress_rule.Options{
 		IngressName: ingressName,
 		Host:        *flags.Host,
-		Path:        pathUri.Path,
-		Delete:      strings.ToLower(command) == "delete",
-		Set:         strings.ToLower(command) == "set",
+		Path:        path,
+		Delete:      strings.ToLower(command) == COMMAND_DELETE,
+		Set:         strings.ToLower(command) == COMMAND_SET,
 		PathType:    pathType,
 		ServiceName: *flags.ServiceName,
 		PortNumber:  int32(*flags.PortNumber),

@@ -42,8 +42,9 @@ func TestIngressService_AddRule_ExistingIngress(t *testing.T) {
 
 	ruleFoo := ruleHostFoo()
 
-	err := ingressService.AddRule(context.TODO(), &ruleFoo)
+	created, err := ingressService.AddRule(context.TODO(), &ruleFoo)
 	assert.Nil(t, err)
+	assert.False(t, created)
 
 	assert.Equal(t, ruleHostBar(), ingress.Spec.Rules[0])
 	assert.Equal(t, ruleHostFoo(), ingress.Spec.Rules[1])
@@ -78,8 +79,9 @@ func TestIngressService_AddRule_ExistingIngress_ExistingHost(t *testing.T) {
 
 	ruleFoo := ruleHostFoo2()
 
-	err := ingressService.AddRule(context.TODO(), &ruleFoo)
+	created, err := ingressService.AddRule(context.TODO(), &ruleFoo)
 	assert.Nil(t, err)
+	assert.False(t, created)
 
 	assert.Equal(t, ruleHostFooTwoRules(), ingress.Spec.Rules[0])
 }
@@ -106,8 +108,9 @@ func TestIngressService_AddRule_ExistingIngress_ExistingRule(t *testing.T) {
 
 	rule := ruleHostBar()
 
-	err := ingressService.AddRule(context.TODO(), &rule)
+	created, err := ingressService.AddRule(context.TODO(), &rule)
 	assert.ErrorIs(t, err, ErrorIngressRuleAlreadyExists)
+	assert.False(t, created)
 
 	assert.Equal(t, ruleHostBar(), ingress.Spec.Rules[0])
 }
@@ -136,8 +139,9 @@ func TestIngressService_AddRule_NewIngress(t *testing.T) {
 
 	ruleFoo := ruleHostFoo()
 
-	err := ingressService.AddRule(context.TODO(), &ruleFoo)
+	created, err := ingressService.AddRule(context.TODO(), &ruleFoo)
 	assert.Nil(t, err)
+	assert.True(t, created)
 
 	assert.Equal(t, ruleHostFoo(), ingress.Spec.Rules[0])
 }
@@ -324,11 +328,12 @@ func TestIngressService_DeleteRule(t *testing.T) {
 				ingressName: "foo",
 			}
 
-			err := ingressService.DeleteRule(context.TODO(), test.serviceName, test.servicePort)
+			deleted, err := ingressService.DeleteRule(context.TODO(), test.serviceName, test.servicePort)
 			assert.Equal(t, test.expectedError, err)
 
 			if len(test.expectedRules) == 0 {
 				assert.True(t, isIngressDeleted)
+				assert.True(t, deleted)
 			} else {
 				assert.Equal(t, test.expectedRules, ingress.Spec.Rules)
 			}
