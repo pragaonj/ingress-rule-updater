@@ -17,10 +17,10 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use: "ingress-rule <command> <ingress-name> [flags]",
-	Example: "  ingress-rule set my-ingress --service foo --port 80 --host *.foo.com" +
-		"\n  ingress-rule set my-ingress --service foo --port 80 --host example.com --path /foo" +
-		"\n\n  ingress-rule delete my-ingress --service foo" +
-		"\n  ingress-rule delete my-ingress --service foo --port 80",
+	Example: "  kubectl ingress-rule set my-ingress --service foo --port 80 --host *.foo.com" +
+		"\n  kubectl ingress-rule set my-ingress --service foo --port 80 --host example.com --path /foo" +
+		"\n\n  kubectl ingress-rule delete my-ingress --service foo" +
+		"\n  kubectl ingress-rule delete my-ingress --service foo --port 80",
 	Short:   "Add/remove kubernetes ingress rules via command line.",
 	Long:    `Add/remove kubernetes ingress rules via command line.`,
 	Version: "v0.1.0",

@@ -5,8 +5,11 @@ A `kubectl` plugin to add/remove ingress rules on the fly.
 ## Description
 
 Add/remove kubernetes ingress rules via command line.
-This `ingress-rule` allows the configuration of an ingress resource with command line arguments.
-It can create, update (add/remove rules) and delete ingress resources as needed.
+`ingress-rule` allows the configuration of an ingress resource with command line arguments.  
+
+When adding/deleting a backend rule the ingress will be updated.
+On creation of a rule for a non-existing ingress name a new ingress will be created.
+If the last rule is deleted the ingress will be deleted as well.
 
 ## Quick Start
 
@@ -39,13 +42,13 @@ From kubectl inherited options:
 
 ```bash
 # add a rule
-ingress-rule set my-ingress --service foo --port 80
-ingress-rule set my-ingress --service foo --port 80 --host *.foo.com --namespace default
-ingress-rule set my-ingress --service foo --port 80 --host foo.com --path /foo
+kubectl ingress-rule set my-ingress --service foo --port 80
+kubectl ingress-rule set my-ingress --service foo --port 80 --host *.foo.com --namespace default
+kubectl ingress-rule set my-ingress --service foo --port 80 --host foo.com --path /foo
 
 # remove a rule
-ingress-rule delete my-ingress --service foo
-ingress-rule delete my-ingress --service foo --port 80
+kubectl ingress-rule delete my-ingress --service foo
+kubectl ingress-rule delete my-ingress --service foo --port 80
 ```
 
 ## Backlog

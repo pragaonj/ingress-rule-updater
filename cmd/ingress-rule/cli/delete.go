@@ -11,8 +11,8 @@ var IngressRuleDeleteConfigFlags *CliFlags
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
 	Use: "delete <ingress-name> [flags]",
-	Example: "  ingress-rule delete my-ingress --service foo" +
-		"\n  ingress-rule delete my-ingress --service foo --port 80",
+	Example: "  kubectl ingress-rule delete my-ingress --service foo" +
+		"\n  kubectl ingress-rule delete my-ingress --service foo --port 80",
 	Short: "Remove kubernetes ingress rules via command line. Deletes the ingress if there are no rules left.",
 	Long:  `Deletes a backend rule from an ingress. Deletes the ingress if there are no rules left. Supports removal by service name or a combination of service name and port number.`,
 	Args: func(cmd *cobra.Command, args []string) error {

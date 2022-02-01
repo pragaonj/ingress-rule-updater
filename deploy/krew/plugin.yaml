@@ -44,6 +44,9 @@ spec:
   shortDescription: Update ingress rules via command line.
   homepage: https://github.com/pragaonj/ingress-rule-updater
   description: |
-    Add/remove kubernetes ingress rules via command line.
+    Add/remove rules to/from a kubernetes ingress via command line.
     This plugin allows the configuration of an ingress resource with command line arguments.
-    It can create, update (add/remove rules) and delete ingress resources as needed.
+    
+    When adding/deleting a backend rule the ingress will be updated.
+    On creation of a rule for a non-existing ingress name a new ingress will be created.
+    If the last rule is deleted the ingress will be deleted as well.
