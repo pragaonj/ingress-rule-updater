@@ -5,51 +5,45 @@ metadata:
 spec:
   version: "v0.1.0"
   platforms:
-  - selector:
-      matchLabels:
-        os: linux
-        arch: amd64
-    uri: https://github.com/pragaonj/ingress-rule-updater/releases/download/v0.1.0/ingress-rule_linux_amd64.tar.gz
-    sha256: ""
-    files:
-    - from: "./ingress-rule"
-      to: "."
-    - from: LICENSE
-      to: "."
-    bin: "ingress-rule"
-  - selector:
-      matchLabels:
-        os: darwin
-        arch: amd64
-    uri: https://github.com/pragaonj/ingress-rule-updater/releases/download/v0.1.0/ingress-rule_darwin_amd64.tar.gz
-    sha256: ""
-    files:
-    - from: "./ingress-rule"
-      to: "."
-    - from: LICENSE
-      to: "."
-    bin: "ingress-rule"
-  - selector:
-      matchLabels:
-        os: windows
-        arch: amd64
-    uri: https://github.com/pragaonj/ingress-rule-updater/releases/download/v0.1.0/ingress-rule_windows_amd64.zip
-    sha256: ""
-    files:
-    - from: "/ingress-rule.exe"
-      to: "."
-    - from: LICENSE
-      to: "."
-    bin: "ingress-rule.exe"
-  shortDescription: A new plugin
+    - selector:
+        matchLabels:
+          os: linux
+          arch: amd64
+      uri: https://github.com/pragaonj/ingress-rule-updater/releases/download/v0.1.0/ingress-rule_linux_amd64.tar.gz
+      sha256: ""
+      files:
+        - from: "./ingress-rule"
+          to: "."
+        - from: LICENSE
+          to: "."
+      bin: "ingress-rule"
+    - selector:
+        matchLabels:
+          os: darwin
+          arch: amd64
+      uri: https://github.com/pragaonj/ingress-rule-updater/releases/download/v0.1.0/ingress-rule_darwin_amd64.tar.gz
+      sha256: ""
+      files:
+        - from: "./ingress-rule"
+          to: "."
+        - from: LICENSE
+          to: "."
+      bin: "ingress-rule"
+    - selector:
+        matchLabels:
+          os: windows
+          arch: amd64
+      uri: https://github.com/pragaonj/ingress-rule-updater/releases/download/v0.1.0/ingress-rule_windows_amd64.zip
+      sha256: ""
+      files:
+        - from: "/ingress-rule.exe"
+          to: "."
+        - from: LICENSE
+          to: "."
+      bin: "ingress-rule.exe"
+  shortDescription: Update ingress rules via command line.
   homepage: https://github.com/pragaonj/ingress-rule-updater
-  caveats: |
-    Usage:
-      $ kubectl ingress-rule
-
-    For additional options:
-      $ kubectl ingress-rule --help
-      or https://github.com/pragaonj/ingress-rule-updater/blob/v0.1.0/doc/USAGE.md
-
   description: |
-    This is a new plugin
+    Add/remove kubernetes ingress rules via command line.
+    This plugin allows the configuration of an ingress resource with command line arguments.
+    It can create, update (add/remove rules) and delete ingress resources as needed.

@@ -1,6 +1,12 @@
-# ingress-rule kubectl
+# ingress-rule
 
 A `kubectl` plugin to add/remove ingress rules on the fly.
+
+## Description
+
+Add/remove kubernetes ingress rules via command line.
+This `ingress-rule` allows the configuration of an ingress resource with command line arguments.
+It can create, update (add/remove rules) and delete ingress resources as needed.
 
 ## Quick Start
 
@@ -9,29 +15,18 @@ kubectl krew install ingress-rule
 kubectl ingress-rule
 ```
 
-## Usage
-
-```bash
-# add a rule
-ingress-rule set foo --service foo --port 80
-ingress-rule set foo --service foo --port 80 --host *.foo.com --path /foo --namespace default
-
-# remove a rule
-ingress-rule delete foo --service foo --port 80
-```
-
 ## Command line options
 
 ```
-kubectl ingress-rule <command>
+kubectl ingress-rule <command> <ingress-name>
 
 Commands:
-    set <ingress-name>      Adds a backend rule to the ingress. If the ingress does not exist a new ingress will be created.
-    delete <ingress-name>   Deletes a backend rule from the ingress. Deletes the ingress if there are no rules left.
+    set         Add kubernetes ingress rules via command line. If the ingress does not exist a new ingress will be created.
+    delete      Remove kubernetes ingress rules via command line. Deletes the ingress if there are no rules left.
 
 Options:
-    --port                  Set backend service port by port number
-    --service               Set backend service by name
+    --port      Set backend service port by port number
+    --service   Set backend service by name
     --host                  Set host (optional)
     --path                  Set path (optional)  
     --path-type             Set matching type for path (optional); Accepts: "Prefix", "Exact", "ImplementationSpecific"; Defaults to "Prefix"
@@ -40,16 +35,21 @@ From kubectl inherited options:
     -n, --namespace         Set the namespace
 ```
 
-## Feature plans
+## Usage examples
 
-Done:
-- Allow user to specify a path (additionally to the host)
-- Delete backend-rules by <service>
-- Delete backend-rules by <service> and <port>
-- Extract namespace from context if no namespace options is provided
-- Help dialog
+```bash
+# add a rule
+ingress-rule set my-ingress --service foo --port 80
+ingress-rule set my-ingress --service foo --port 80 --host *.foo.com --namespace default
+ingress-rule set my-ingress --service foo --port 80 --host foo.com --path /foo
 
-Todo:
+# remove a rule
+ingress-rule delete my-ingress --service foo
+ingress-rule delete my-ingress --service foo --port 80
+```
+
+## Backlog
+
 - Optional port configuration via PortName instead of PortNumber
 - Delete backend-rules by <host>
 - Delete backend-rules by <host><path>

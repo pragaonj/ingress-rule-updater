@@ -34,7 +34,7 @@ func AddOptionFlags(flagSet *pflag.FlagSet, command string) *CliFlags {
 	if command == COMMAND_SET {
 		flagSet.StringVar(cf.Host, "host", "", "Set host e.g. foo.example.com, *.example.com, example.com (optional)")
 		flagSet.StringVar(cf.Path, "path", "/", "Set matching path (optional)")
-		flagSet.StringVar(cf.PathType, "path-type", "prefix", "Set matching type for path (optional); Accepts: \"Prefix\", \"Exact\", \"ImplementationSpecific\"; Defaults to \"Prefix\"")
+		flagSet.StringVar(cf.PathType, "path-type", "prefix", "Set matching type for path (optional); Accepts: \"Prefix\", \"Exact\", \"ImplementationSpecific\"")
 	}
 	flagSet.StringVar(cf.ServiceName, "service", "", "Name of backend service (must be in the same namespace as the ingress)")
 	flagSet.IntVar(cf.PortNumber, "port", 0, "Port number of backend service")
@@ -110,9 +110,8 @@ func CreateOptions(flags *CliFlags, command string, ingressName string) *ingress
 			pathType = networking.PathTypeImplementationSpecific
 			break
 		default:
-			fmt.Println("Invalid path type supplied")
+			fmt.Println("Invalid path-type supplied")
 			return nil
-			break
 		}
 	}
 

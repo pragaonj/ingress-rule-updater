@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"github.com/pragaonj/ingress-rule-updater/cmd/ingress-rule/cli"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // required for GKE
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"os"
 	"os/signal"
 	"syscall"
