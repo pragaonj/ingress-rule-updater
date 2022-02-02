@@ -50,18 +50,3 @@ kubectl ingress-rule set my-ingress --service foo --port 80 --host foo.com --pat
 kubectl ingress-rule delete my-ingress --service foo
 kubectl ingress-rule delete my-ingress --service foo --port 80
 ```
-
-## Backlog
-
-- Optional port configuration via PortName instead of PortNumber
-- Delete backend-rules by <host>
-- Delete backend-rules by <host><path>
-- Add option to configure ingressClassName on ingress creation
-
-## dev
-
-```bash
-# dev usage
-go run cmd/ingress-rule/main.go set foo --service foo --port 80 --host *.foo.com --namespace default
-
-```
