@@ -17,7 +17,7 @@ builds:
       - GO111MODULE=on
     main: cmd/plugin/main.go
     ldflags: -s -w
-      -X github.com/pragaonj/ingress-rule-updater/pkg/version.version=
+      -X github.com/pragaonj/ingress-rule-updater/cmd/ingress-rule/cli.version=
 archives:
   - id: ingress-rule
     builds:

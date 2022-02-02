@@ -14,6 +14,8 @@ var (
 	KubernetesConfigFlags *genericclioptions.ConfigFlags
 )
 
+var version = "dev"
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use: "ingress-rule <command> <ingress-name> [flags]",
@@ -23,7 +25,7 @@ var rootCmd = &cobra.Command{
 		"\n  kubectl ingress-rule delete my-ingress --service foo --port 80",
 	Short:   "Add/remove kubernetes ingress rules via command line.",
 	Long:    `Add/remove kubernetes ingress rules via command line.`,
-	Version: "v0.1.0",
+	Version: version,
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		viper.BindPFlags(cmd.Flags())
