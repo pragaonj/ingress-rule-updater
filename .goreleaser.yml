@@ -12,14 +12,15 @@ builds:
     goarch:
     - amd64
     - "386"
+    env:
+      - CGO_ENABLED=0
     main: cmd/ingress-rule/main.go
-    ldflags: -s -w
-      -X github.com/pragaonj/ingress-rule-updater/cmd/ingress-rule/cli.version=
+    ldflags: "-s -w -X github.com/pragaonj/ingress-rule-updater/cmd/ingress-rule/cli.version={{.Version}}"
 archives:
   - id: ingress-rule
     builds:
     - ingress-rule
-    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
     - goos: windows
       format: zip
