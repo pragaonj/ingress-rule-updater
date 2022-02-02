@@ -12,10 +12,7 @@ builds:
     goarch:
     - amd64
     - "386"
-    env:
-      - CGO_ENABLED=0
-      - GO111MODULE=on
-    main: cmd/plugin/main.go
+    main: cmd/ingress-rule/main.go
     ldflags: -s -w
       -X github.com/pragaonj/ingress-rule-updater/cmd/ingress-rule/cli.version=
 archives:
