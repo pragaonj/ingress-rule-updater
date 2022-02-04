@@ -19,7 +19,7 @@ spec:
     - selector:
         matchLabels:
           os: darwin
-          arch: amd64
+          arch: amd64ß//
       {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_darwin_amd64.tar.gz" .TagName }}
       files:
         - from: "./ingress-rule"
@@ -38,12 +38,12 @@ spec:
         - from: LICENSE
           to: "."
       bin: "ingress-rule.exe"
-  shortDescription: Update ingress rules via command line.
+  shortDescription: Update Ingress rules via command line
   homepage: https://github.com/pragaonj/ingress-rule-updater
   description: |
-    Add/remove rules to/from a kubernetes ingress via command line.
-    This plugin allows the configuration of an ingress resource with command line arguments.
+    Add/remove rules to/from a Kubernetes Ingress via command line.
+    This plugin allows the configuration of an Ingress resource with command line arguments.
     
-    When adding/deleting a backend rule the ingress will be updated.
-    On creation of a rule for a non-existing ingress name a new ingress will be created.
-    If the last rule is deleted the ingress will be deleted as well.
+    When adding/deleting a backend rule the Ingress will be updated.
+    On creation of a rule for a non-existing Ingress name a new Ingress will be created.
+    If the last rule is deleted the Ingress will be deleted as well.
