@@ -9,7 +9,7 @@ spec:
         matchLabels:
           os: linux
           arch: amd64
-      {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_linux_amd64.tar.gz" .TagName }}
+      {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_linux_amd64.tar.gz" .TagName | indent 6 }}
       files:
         - from: "./ingress-rule"
           to: "."
@@ -19,8 +19,8 @@ spec:
     - selector:
         matchLabels:
           os: darwin
-          arch: amd64ß//
-      {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_darwin_amd64.tar.gz" .TagName }}
+          arch: amd64
+      {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_darwin_amd64.tar.gz" .TagName | indent 6 }}
       files:
         - from: "./ingress-rule"
           to: "."
@@ -31,7 +31,7 @@ spec:
         matchLabels:
           os: windows
           arch: amd64
-      {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_windows_amd64.zip" .TagName }}
+      {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_windows_amd64.zip" .TagName | indent 6 }}
       files:
         - from: "/ingress-rule.exe"
           to: "."
