@@ -11,18 +11,25 @@ import (
 )
 
 type IngressService struct {
-	kubeIngress networkingtypes.IngressInterface
-	ingressName string
+	kubeIngress      networkingtypes.IngressInterface
+	ingressName      string
+	ingressClassName string
 }
 
-func NewIngressService(clientset *kubernetes.Clientset, namespace string, ingressname string) *IngressService {
+func NewIngressService(clientset *kubernetes.Clientset, namespace string, ingressName string, ingressClassName string) *IngressService {
 	return &IngressService{
-		kubeIngress: clientset.NetworkingV1().Ingresses(namespace),
-		ingressName: ingressname,
+		kubeIngress:      clientset.NetworkingV1().Ingresses(namespace),
+		ingressName:      ingressName,
+		ingressClassName: ingressClassName,
 	}
 }
 
 func (i *IngressService) createIngress(ctx context.Context, ingressRule *networking.IngressRule) error {
+	ingressClass := &i.ingressClassName
+	if *ingressClass == "" {
+		ingressClass = nil
+	}
+
 	ingress := &networking.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Ingress",
@@ -32,7 +39,8 @@ func (i *IngressService) createIngress(ctx context.Context, ingressRule *network
 			Name: i.ingressName,
 		},
 		Spec: networking.IngressSpec{
-			Rules: []networking.IngressRule{*ingressRule},
+			IngressClassName: ingressClass,
+			Rules:            []networking.IngressRule{*ingressRule},
 		},
 	}
 

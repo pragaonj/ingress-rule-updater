@@ -28,11 +28,12 @@ Commands:
     delete      Remove kubernetes ingress rules via command line. Deletes the ingress if there are no rules left.
 
 Options:
-    --port      Set backend service port by port number
-    --service   Set backend service by name
+    --port                  Set backend service port by port number
+    --service               Set backend service by name
     --host                  Set host (optional)
     --path                  Set path (optional)  
     --path-type             Set matching type for path (optional); Accepts: "Prefix", "Exact", "ImplementationSpecific"; Defaults to "Prefix"
+    --ingress-class         Set ingressClassName when creating a new ingress, will be ignored when the ingress already exists (optional)
 
 From kubectl inherited options:
     -n, --namespace         Set the namespace
@@ -45,6 +46,7 @@ From kubectl inherited options:
 kubectl ingress-rule set my-ingress --service foo --port 80
 kubectl ingress-rule set my-ingress --service foo --port 80 --host *.foo.com --namespace default
 kubectl ingress-rule set my-ingress --service foo --port 80 --host foo.com --path /foo
+kubectl ingress-rule set my-ingress --service foo --port 80 --host foo.com --path /foo --ingress-class nginx
 
 # remove a rule
 kubectl ingress-rule delete my-ingress --service foo

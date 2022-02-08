@@ -146,6 +146,39 @@ func TestIngressService_AddRule_NewIngress(t *testing.T) {
 	assert.Equal(t, ruleHostFoo(), ingress.Spec.Rules[0])
 }
 
+func TestIngressService_AddRule_NewIngress_CustomIngressClassName(t *testing.T) {
+	var ingress *networking.Ingress
+
+	f := clienttesting.Fake{}
+	f.AddReactor("get", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, errors2.NewNotFound(action.GetResource().GroupResource(), action.(clienttesting.GetAction).GetName())
+	})
+	f.AddReactor("create", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+		spec := action.(clienttesting.UpdateAction).GetObject().(*networking.Ingress).Spec
+		assert.Len(t, spec.Rules, 1)
+
+		assert.Equal(t, ruleHostFoo(), spec.Rules[0])
+
+		ingress = action.(clienttesting.CreateAction).GetObject().(*networking.Ingress)
+		return true, action.(clienttesting.CreateAction).GetObject(), nil
+	})
+
+	ingressService := IngressService{
+		kubeIngress:      &fake.FakeIngresses{Fake: &fake.FakeNetworkingV1{Fake: &f}},
+		ingressName:      "foo",
+		ingressClassName: "my-ingress-class",
+	}
+
+	ruleFoo := ruleHostFoo()
+
+	created, err := ingressService.AddRule(context.TODO(), &ruleFoo)
+	assert.Nil(t, err)
+	assert.True(t, created)
+
+	assert.Equal(t, ruleHostFoo(), ingress.Spec.Rules[0])
+	assert.Equal(t, "my-ingress-class", *ingress.Spec.IngressClassName)
+}
+
 func TestIngressService_DeleteRule(t *testing.T) {
 	tests := []struct {
 		name          string

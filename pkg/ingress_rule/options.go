@@ -5,12 +5,13 @@ import (
 )
 
 type Options struct {
-	IngressName string
-	Host        string
-	Path        string
-	Delete      bool
-	Set         bool
-	PathType    networking.PathType
-	ServiceName string
-	PortNumber  int32
+	IngressName      string
+	IngressClassName string
+	Host             string
+	Path             string
+	Delete           bool
+	Set              bool
+	PathType         networking.PathType
+	ServiceName      string
+	PortNumber       int32
 }
