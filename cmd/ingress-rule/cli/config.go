@@ -11,11 +11,12 @@ import (
 )
 
 type CliFlags struct {
-	Host        *string
-	Path        *string
-	PathType    *string
-	ServiceName *string
-	PortNumber  *int
+	Host             *string
+	Path             *string
+	PathType         *string
+	ServiceName      *string
+	PortNumber       *int
+	IngressClassName *string
 }
 
 const COMMAND_SET = "set"
@@ -23,11 +24,12 @@ const COMMAND_DELETE = "delete"
 
 func AddOptionFlags(flagSet *pflag.FlagSet, command string) *CliFlags {
 	cf := &CliFlags{
-		Host:        stringptr(""),
-		Path:        stringptr(""),
-		PathType:    stringptr(""),
-		ServiceName: stringptr(""),
-		PortNumber:  intptr(0),
+		Host:             stringptr(""),
+		Path:             stringptr(""),
+		PathType:         stringptr(""),
+		ServiceName:      stringptr(""),
+		IngressClassName: stringptr(""),
+		PortNumber:       intptr(0),
 		//todo add support for PortName as alternative to PortNumber
 	}
 
@@ -35,6 +37,7 @@ func AddOptionFlags(flagSet *pflag.FlagSet, command string) *CliFlags {
 		flagSet.StringVar(cf.Host, "host", "", "Set host e.g. foo.example.com, *.example.com, example.com (optional)")
 		flagSet.StringVar(cf.Path, "path", "/", "Set matching path (optional)")
 		flagSet.StringVar(cf.PathType, "path-type", "prefix", "Set matching type for path (optional); Accepts: \"Prefix\", \"Exact\", \"ImplementationSpecific\"")
+		flagSet.StringVar(cf.IngressClassName, "ingress-class", "", "Set ingressClassName when creating a new ingress, will be ignored when the ingress already exists (optional)")
 	}
 	flagSet.StringVar(cf.ServiceName, "service", "", "Name of backend service (must be in the same namespace as the ingress)")
 	flagSet.IntVar(cf.PortNumber, "port", 0, "Port number of backend service")
@@ -116,13 +119,14 @@ func CreateOptions(flags *CliFlags, command string, ingressName string) *ingress
 	}
 
 	return &ingress_rule.Options{
-		IngressName: ingressName,
-		Host:        *flags.Host,
-		Path:        path,
-		Delete:      strings.ToLower(command) == COMMAND_DELETE,
-		Set:         strings.ToLower(command) == COMMAND_SET,
-		PathType:    pathType,
-		ServiceName: *flags.ServiceName,
-		PortNumber:  int32(*flags.PortNumber),
+		IngressName:      ingressName,
+		IngressClassName: *flags.IngressClassName,
+		Host:             *flags.Host,
+		Path:             path,
+		Delete:           strings.ToLower(command) == COMMAND_DELETE,
+		Set:              strings.ToLower(command) == COMMAND_SET,
+		PathType:         pathType,
+		ServiceName:      *flags.ServiceName,
+		PortNumber:       int32(*flags.PortNumber),
 	}
 }

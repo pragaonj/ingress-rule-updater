@@ -29,7 +29,7 @@ func RunPlugin(ctx context.Context, configFlags *genericclioptions.ConfigFlags, 
 		return err
 	}
 
-	ingressService := service.NewIngressService(clientset, namespace, options.IngressName)
+	ingressService := service.NewIngressService(clientset, namespace, options.IngressName, options.IngressClassName)
 
 	if options.Set {
 		backendRule := service.CreateIngressRule(options.Host, options.Path, options.PathType, options.ServiceName, options.PortNumber)
