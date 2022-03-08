@@ -14,4 +14,5 @@ type Options struct {
 	PathType         networking.PathType
 	ServiceName      string
 	PortNumber       int32
+	TlsSecret        string
 }

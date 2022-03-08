@@ -34,6 +34,7 @@ Options:
     --path                  Set path (optional)  
     --path-type             Set matching type for path (optional); Accepts: "Prefix", "Exact", "ImplementationSpecific"; Defaults to "Prefix"
     --ingress-class         Set ingressClassName when creating a new ingress, will be ignored when the ingress already exists (optional)
+    --tls string            Enable tls for rule and set tls-secret
 
 From kubectl inherited options:
     -n, --namespace         Set the namespace
@@ -47,6 +48,7 @@ kubectl ingress-rule set my-ingress --service foo --port 80
 kubectl ingress-rule set my-ingress --service foo --port 80 --host *.foo.com --namespace default
 kubectl ingress-rule set my-ingress --service foo --port 80 --host foo.com --path /foo
 kubectl ingress-rule set my-ingress --service foo --port 80 --host foo.com --path /foo --ingress-class nginx
+kubectl ingress-rule set my-ingress --service foo --port 80 --host foo.com --tls my-tls-secret
 
 # remove a rule
 kubectl ingress-rule delete my-ingress --service foo

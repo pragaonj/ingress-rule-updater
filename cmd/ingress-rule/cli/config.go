@@ -17,6 +17,7 @@ type CliFlags struct {
 	ServiceName      *string
 	PortNumber       *int
 	IngressClassName *string
+	Tls              *string
 }
 
 const COMMAND_SET = "set"
@@ -29,6 +30,7 @@ func AddOptionFlags(flagSet *pflag.FlagSet, command string) *CliFlags {
 		PathType:         stringptr(""),
 		ServiceName:      stringptr(""),
 		IngressClassName: stringptr(""),
+		Tls:              stringptr(""),
 		PortNumber:       intptr(0),
 		//todo add support for PortName as alternative to PortNumber
 	}
@@ -38,6 +40,7 @@ func AddOptionFlags(flagSet *pflag.FlagSet, command string) *CliFlags {
 		flagSet.StringVar(cf.Path, "path", "/", "Set matching path (optional)")
 		flagSet.StringVar(cf.PathType, "path-type", "prefix", "Set matching type for path (optional); Accepts: \"Prefix\", \"Exact\", \"ImplementationSpecific\"")
 		flagSet.StringVar(cf.IngressClassName, "ingress-class", "", "Set ingressClassName when creating a new ingress, will be ignored when the ingress already exists (optional)")
+		flagSet.StringVar(cf.Tls, "tls", "", "Enable tls for rule and set tls-secret")
 	}
 	flagSet.StringVar(cf.ServiceName, "service", "", "Name of backend service (must be in the same namespace as the ingress)")
 	flagSet.IntVar(cf.PortNumber, "port", 0, "Port number of backend service")
@@ -116,6 +119,11 @@ func CreateOptions(flags *CliFlags, command string, ingressName string) *ingress
 			fmt.Println("Invalid path-type supplied")
 			return nil
 		}
+
+		if *flags.Tls != "" && *flags.Host == "" {
+			fmt.Println("Invalid combination of command line arguments: tls configuration requires a hostname")
+			return nil
+		}
 	}
 
 	return &ingress_rule.Options{
@@ -128,5 +136,6 @@ func CreateOptions(flags *CliFlags, command string, ingressName string) *ingress
 		PathType:         pathType,
 		ServiceName:      *flags.ServiceName,
 		PortNumber:       int32(*flags.PortNumber),
+		TlsSecret:        *flags.Tls,
 	}
 }

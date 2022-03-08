@@ -34,7 +34,7 @@ func RunPlugin(ctx context.Context, configFlags *genericclioptions.ConfigFlags, 
 	if options.Set {
 		backendRule := service.CreateIngressRule(options.Host, options.Path, options.PathType, options.ServiceName, options.PortNumber)
 
-		created, err := ingressService.AddRule(ctx, backendRule)
+		created, err := ingressService.AddRule(ctx, backendRule, options.TlsSecret)
 		if err != nil {
 			return err
 		}
@@ -50,7 +50,11 @@ func RunPlugin(ctx context.Context, configFlags *genericclioptions.ConfigFlags, 
 			return err
 		}
 
-		fmt.Printf("Removed rule for service '%s' (port: '%d') from ingress '%s'\n", options.ServiceName, options.PortNumber, options.IngressName)
+		if options.PortNumber != 0 {
+			fmt.Printf("Removed rule(s) for service '%s' (port: '%d') from ingress '%s'\n", options.ServiceName, options.PortNumber, options.IngressName)
+		} else {
+			fmt.Printf("Removed rule(s) for service '%s' from ingress '%s'\n", options.ServiceName, options.IngressName)
+		}
 		if deleted {
 			fmt.Printf("Deleted ingress '%s'\n", options.IngressName)
 		}
