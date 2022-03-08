@@ -97,66 +97,104 @@ func TestIngressService_AddRuleToExistingIngress(t *testing.T) {
 		err                      error
 		tlsSecret                string
 		expectedTlsConfiguration []networking.IngressTLS
+		initialTlsConfiguration  []networking.IngressTLS
 	}{
 		{
-			"add rule to exiting ingress",
-			[]networking.IngressRule{ruleHostBar()},
-			ruleHostFoo(),
-			[]networking.IngressRule{ruleHostBar(), ruleHostFoo()},
-			nil,
-			"",
-			nil,
+			name:          "add rule to exiting ingress",
+			existingRules: []networking.IngressRule{ruleHostBar()},
+			newRule:       ruleHostFoo(),
+			expectedRules: []networking.IngressRule{ruleHostBar(), ruleHostFoo()},
 		},
 		{
-			"add rule to existing ingress with existing host",
-			[]networking.IngressRule{ruleHostFoo()},
-			ruleHostFoo2(),
-			[]networking.IngressRule{ruleHostFooTwoRules()},
-			nil,
-			"",
-			nil,
+			name:          "add rule to existing ingress with existing host",
+			existingRules: []networking.IngressRule{ruleHostFoo()},
+			newRule:       ruleHostFoo2(),
+			expectedRules: []networking.IngressRule{ruleHostFooTwoRules()},
 		},
 		{
-			"add rule to existing ingress with existing rule",
-			[]networking.IngressRule{ruleHostFoo()},
-			ruleHostFoo(),
-			[]networking.IngressRule{ruleHostFoo()},
-			ErrorIngressRuleAlreadyExists,
-			"",
-			nil,
+			name:          "add rule to existing ingress with existing rule",
+			existingRules: []networking.IngressRule{ruleHostFoo()},
+			newRule:       ruleHostFoo(),
+			expectedRules: []networking.IngressRule{ruleHostFoo()},
+			err:           ErrorIngressRuleAlreadyExists,
 		},
 		{
-			"add rule to exiting ingress with tls secret",
-			[]networking.IngressRule{ruleHostBar()},
-			ruleHostFoo(),
-			[]networking.IngressRule{ruleHostBar(), ruleHostFoo()},
-			nil,
-			"my-secret",
-			[]networking.IngressTLS{{
+			name:          "add rule to exiting ingress with tls secret",
+			existingRules: []networking.IngressRule{ruleHostBar()},
+			newRule:       ruleHostFoo(),
+			expectedRules: []networking.IngressRule{ruleHostBar(), ruleHostFoo()},
+			tlsSecret:     "my-secret",
+			expectedTlsConfiguration: []networking.IngressTLS{{
 				Hosts:      []string{ruleHostFoo().Host},
 				SecretName: "my-secret",
 			}},
 		},
 		{
-			"add rule to existing ingress with existing host with tls secret",
-			[]networking.IngressRule{ruleHostFoo()},
-			ruleHostFoo2(),
-			[]networking.IngressRule{ruleHostFooTwoRules()},
-			nil,
-			"my-secret",
-			[]networking.IngressTLS{{
+			name:          "add rule to existing ingress with existing host with tls secret",
+			existingRules: []networking.IngressRule{ruleHostFoo()},
+			newRule:       ruleHostFoo2(),
+			expectedRules: []networking.IngressRule{ruleHostFooTwoRules()},
+			tlsSecret:     "my-secret",
+			expectedTlsConfiguration: []networking.IngressTLS{{
 				Hosts:      []string{ruleHostFoo().Host},
 				SecretName: "my-secret",
 			}},
 		},
 		{
-			"add rule to existing ingress with existing rule with tls secret",
-			[]networking.IngressRule{ruleHostFoo()},
-			ruleHostFoo(),
-			[]networking.IngressRule{ruleHostFoo()},
-			ErrorIngressRuleAlreadyExists,
-			"my-secret",
-			nil,
+			name:          "add rule to existing ingress with existing rule with tls secret",
+			existingRules: []networking.IngressRule{ruleHostFoo()},
+			newRule:       ruleHostFoo(),
+			expectedRules: []networking.IngressRule{ruleHostFoo()},
+			err:           ErrorIngressRuleAlreadyExists,
+			tlsSecret:     "my-secret",
+		},
+		{
+			name:          "add rule to existing ingress with existing rule with tls secret returns ErrorTlsConfigurationAlreadyExists",
+			existingRules: []networking.IngressRule{ruleHostFoo()},
+			newRule:       ruleHostFoo2(),
+			expectedRules: []networking.IngressRule{ruleHostFoo()},
+			err:           ErrorTlsConfigurationAlreadyExists,
+			tlsSecret:     "my-secret",
+			initialTlsConfiguration: []networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host},
+				SecretName: "my-old-secret",
+			}},
+			expectedTlsConfiguration: []networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host},
+				SecretName: "my-old-secret",
+			}},
+		},
+		{
+			name:          "add rule to existing ingress with existing rule with tls secret with same secret name",
+			existingRules: []networking.IngressRule{ruleHostFoo()},
+			newRule:       ruleHostFoo2(),
+			expectedRules: []networking.IngressRule{ruleHostFooTwoRules()},
+			err:           nil,
+			tlsSecret:     "my-secret",
+			initialTlsConfiguration: []networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host},
+				SecretName: "my-secret",
+			}},
+			expectedTlsConfiguration: []networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host},
+				SecretName: "my-secret",
+			}},
+		},
+		{
+			name:          "add rule to existing ingress with existing rule with existing tls secret",
+			existingRules: []networking.IngressRule{ruleHostFoo()},
+			newRule:       ruleHostBar(),
+			expectedRules: []networking.IngressRule{ruleHostFoo(), ruleHostBar()},
+			err:           nil,
+			tlsSecret:     "my-secret",
+			initialTlsConfiguration: []networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host},
+				SecretName: "my-secret",
+			}},
+			expectedTlsConfiguration: []networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host, ruleHostBar().Host},
+				SecretName: "my-secret",
+			}},
 		},
 	}
 	for _, test := range tests {
@@ -166,6 +204,7 @@ func TestIngressService_AddRuleToExistingIngress(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{},
 				Spec: networking.IngressSpec{
 					Rules: test.existingRules,
+					TLS:   test.initialTlsConfiguration,
 				},
 				Status: networking.IngressStatus{},
 			}
@@ -191,7 +230,9 @@ func TestIngressService_AddRuleToExistingIngress(t *testing.T) {
 			assert.Equal(t, test.err, err)
 			assert.False(t, created)
 
-			assert.Equal(t, test.expectedRules, ingress.Spec.Rules)
+			if err == nil {
+				assert.Equal(t, test.expectedRules, ingress.Spec.Rules)
+			}
 			assert.Equal(t, test.expectedTlsConfiguration, ingress.Spec.TLS)
 		})
 	}
@@ -444,6 +485,10 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateIngressRule(t *testing.T) {
+	assert.Equal(t, ruleHostFoo2(), *CreateIngressRule("foo.com", "/2", networking.PathTypePrefix, "service-foo-2", 80))
 }
 
 func ruleHostFoo() networking.IngressRule {
