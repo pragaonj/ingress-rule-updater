@@ -12,181 +12,201 @@ import (
 	"testing"
 )
 
-func TestIngressService_AddRule_ExistingIngress(t *testing.T) {
-	ingress := networking.Ingress{
-		TypeMeta:   metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{},
-		Spec: networking.IngressSpec{
-			Rules: []networking.IngressRule{ruleHostBar()},
+func TestIngressService_AddRuleToNewIngress(t *testing.T) {
+	tests := []struct {
+		name                     string
+		newRule                  networking.IngressRule
+		ingressCreated           bool
+		err                      error
+		ingressClassName         string
+		tlsSecret                string
+		expectedTlsConfiguration []networking.IngressTLS
+	}{
+		{
+			"add rule to new ingress",
+			ruleHostFoo(),
+			true,
+			nil,
+			"ingress-class",
+			"",
+			nil,
 		},
-		Status: networking.IngressStatus{},
-	}
-
-	f := clienttesting.Fake{}
-	f.AddReactor("get", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &ingress, nil
-	})
-	f.AddReactor("update", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		spec := action.(clienttesting.UpdateAction).GetObject().(*networking.Ingress).Spec
-		assert.Len(t, spec.Rules, 2)
-
-		assert.Equal(t, ruleHostBar(), spec.Rules[0])
-		assert.Equal(t, ruleHostFoo(), spec.Rules[1])
-		return true, action.(clienttesting.UpdateAction).GetObject(), nil
-	})
-
-	ingressService := IngressService{
-		kubeIngress: &fake.FakeIngresses{Fake: &fake.FakeNetworkingV1{Fake: &f}},
-		ingressName: "foo",
-	}
-
-	ruleFoo := ruleHostFoo()
-
-	created, err := ingressService.AddRule(context.TODO(), &ruleFoo)
-	assert.Nil(t, err)
-	assert.False(t, created)
-
-	assert.Equal(t, ruleHostBar(), ingress.Spec.Rules[0])
-	assert.Equal(t, ruleHostFoo(), ingress.Spec.Rules[1])
-}
-
-func TestIngressService_AddRule_ExistingIngress_ExistingHost(t *testing.T) {
-	ingress := networking.Ingress{
-		TypeMeta:   metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{},
-		Spec: networking.IngressSpec{
-			Rules: []networking.IngressRule{ruleHostFoo()},
+		{
+			"add rule to new ingress with custom ingress class name",
+			ruleHostFoo(),
+			true,
+			nil,
+			"my-ingress-class",
+			"",
+			nil,
 		},
-		Status: networking.IngressStatus{},
-	}
-
-	f := clienttesting.Fake{}
-	f.AddReactor("get", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &ingress, nil
-	})
-	f.AddReactor("update", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		spec := action.(clienttesting.UpdateAction).GetObject().(*networking.Ingress).Spec
-		assert.Len(t, spec.Rules, 1)
-
-		assert.Equal(t, ruleHostFooTwoRules(), spec.Rules[0])
-		return true, action.(clienttesting.UpdateAction).GetObject(), nil
-	})
-
-	ingressService := IngressService{
-		kubeIngress: &fake.FakeIngresses{Fake: &fake.FakeNetworkingV1{Fake: &f}},
-		ingressName: "foo",
-	}
-
-	ruleFoo := ruleHostFoo2()
-
-	created, err := ingressService.AddRule(context.TODO(), &ruleFoo)
-	assert.Nil(t, err)
-	assert.False(t, created)
-
-	assert.Equal(t, ruleHostFooTwoRules(), ingress.Spec.Rules[0])
-}
-
-func TestIngressService_AddRule_ExistingIngress_ExistingRule(t *testing.T) {
-	ingress := networking.Ingress{
-		TypeMeta:   metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{},
-		Spec: networking.IngressSpec{
-			Rules: []networking.IngressRule{ruleHostBar()},
+		{
+			"add rule to new ingress with tls secret",
+			ruleHostFoo(),
+			true,
+			nil,
+			"my-ingress-class",
+			"my-secret",
+			[]networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host},
+				SecretName: "my-secret",
+			}},
 		},
-		Status: networking.IngressStatus{},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var ingress *networking.Ingress
 
-	f := clienttesting.Fake{}
-	f.AddReactor("get", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &ingress, nil
-	})
+			f := clienttesting.Fake{}
+			f.AddReactor("get", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, nil, errors2.NewNotFound(action.GetResource().GroupResource(), action.(clienttesting.GetAction).GetName())
+			})
+			f.AddReactor("create", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+				spec := action.(clienttesting.UpdateAction).GetObject().(*networking.Ingress).Spec
+				assert.Len(t, spec.Rules, 1)
+				assert.Equal(t, test.newRule, spec.Rules[0])
+				assert.Equal(t, test.expectedTlsConfiguration, spec.TLS)
 
-	ingressService := IngressService{
-		kubeIngress: &fake.FakeIngresses{Fake: &fake.FakeNetworkingV1{Fake: &f}},
-		ingressName: "foo",
+				ingress = action.(clienttesting.CreateAction).GetObject().(*networking.Ingress)
+				return true, action.(clienttesting.CreateAction).GetObject(), nil
+			})
+
+			ingressService := IngressService{
+				kubeIngress:      &fake.FakeIngresses{Fake: &fake.FakeNetworkingV1{Fake: &f}},
+				ingressName:      "foo",
+				ingressClassName: test.ingressClassName,
+			}
+
+			created, err := ingressService.AddRule(context.TODO(), &test.newRule, test.tlsSecret)
+			assert.Equal(t, test.err, err)
+			assert.Equal(t, test.ingressCreated, created)
+
+			assert.Equal(t, test.newRule, ingress.Spec.Rules[0])
+			assert.Equal(t, test.ingressClassName, *ingress.Spec.IngressClassName)
+			assert.Equal(t, test.expectedTlsConfiguration, ingress.Spec.TLS)
+		})
 	}
-
-	rule := ruleHostBar()
-
-	created, err := ingressService.AddRule(context.TODO(), &rule)
-	assert.ErrorIs(t, err, ErrorIngressRuleAlreadyExists)
-	assert.False(t, created)
-
-	assert.Equal(t, ruleHostBar(), ingress.Spec.Rules[0])
 }
 
-func TestIngressService_AddRule_NewIngress(t *testing.T) {
-	var ingress *networking.Ingress
-
-	f := clienttesting.Fake{}
-	f.AddReactor("get", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, errors2.NewNotFound(action.GetResource().GroupResource(), action.(clienttesting.GetAction).GetName())
-	})
-	f.AddReactor("create", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		spec := action.(clienttesting.UpdateAction).GetObject().(*networking.Ingress).Spec
-		assert.Len(t, spec.Rules, 1)
-
-		assert.Equal(t, ruleHostFoo(), spec.Rules[0])
-
-		ingress = action.(clienttesting.CreateAction).GetObject().(*networking.Ingress)
-		return true, action.(clienttesting.CreateAction).GetObject(), nil
-	})
-
-	ingressService := IngressService{
-		kubeIngress: &fake.FakeIngresses{Fake: &fake.FakeNetworkingV1{Fake: &f}},
-		ingressName: "foo",
+func TestIngressService_AddRuleToExistingIngress(t *testing.T) {
+	tests := []struct {
+		name                     string
+		existingRules            []networking.IngressRule
+		newRule                  networking.IngressRule
+		expectedRules            []networking.IngressRule
+		err                      error
+		tlsSecret                string
+		expectedTlsConfiguration []networking.IngressTLS
+	}{
+		{
+			"add rule to exiting ingress",
+			[]networking.IngressRule{ruleHostBar()},
+			ruleHostFoo(),
+			[]networking.IngressRule{ruleHostBar(), ruleHostFoo()},
+			nil,
+			"",
+			nil,
+		},
+		{
+			"add rule to existing ingress with existing host",
+			[]networking.IngressRule{ruleHostFoo()},
+			ruleHostFoo2(),
+			[]networking.IngressRule{ruleHostFooTwoRules()},
+			nil,
+			"",
+			nil,
+		},
+		{
+			"add rule to existing ingress with existing rule",
+			[]networking.IngressRule{ruleHostFoo()},
+			ruleHostFoo(),
+			[]networking.IngressRule{ruleHostFoo()},
+			ErrorIngressRuleAlreadyExists,
+			"",
+			nil,
+		},
+		{
+			"add rule to exiting ingress with tls secret",
+			[]networking.IngressRule{ruleHostBar()},
+			ruleHostFoo(),
+			[]networking.IngressRule{ruleHostBar(), ruleHostFoo()},
+			nil,
+			"my-secret",
+			[]networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host},
+				SecretName: "my-secret",
+			}},
+		},
+		{
+			"add rule to existing ingress with existing host with tls secret",
+			[]networking.IngressRule{ruleHostFoo()},
+			ruleHostFoo2(),
+			[]networking.IngressRule{ruleHostFooTwoRules()},
+			nil,
+			"my-secret",
+			[]networking.IngressTLS{{
+				Hosts:      []string{ruleHostFoo().Host},
+				SecretName: "my-secret",
+			}},
+		},
+		{
+			"add rule to existing ingress with existing rule with tls secret",
+			[]networking.IngressRule{ruleHostFoo()},
+			ruleHostFoo(),
+			[]networking.IngressRule{ruleHostFoo()},
+			ErrorIngressRuleAlreadyExists,
+			"my-secret",
+			nil,
+		},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ingress := networking.Ingress{
+				TypeMeta:   metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{},
+				Spec: networking.IngressSpec{
+					Rules: test.existingRules,
+				},
+				Status: networking.IngressStatus{},
+			}
 
-	ruleFoo := ruleHostFoo()
+			f := clienttesting.Fake{}
+			f.AddReactor("get", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, &ingress, nil
+			})
+			f.AddReactor("update", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+				spec := action.(clienttesting.UpdateAction).GetObject().(*networking.Ingress).Spec
+				assert.Len(t, spec.Rules, len(test.expectedRules))
+				assert.Equal(t, test.expectedRules, spec.Rules)
+				assert.Equal(t, test.expectedTlsConfiguration, spec.TLS)
+				return true, action.(clienttesting.UpdateAction).GetObject(), nil
+			})
 
-	created, err := ingressService.AddRule(context.TODO(), &ruleFoo)
-	assert.Nil(t, err)
-	assert.True(t, created)
+			ingressService := IngressService{
+				kubeIngress: &fake.FakeIngresses{Fake: &fake.FakeNetworkingV1{Fake: &f}},
+				ingressName: "foo",
+			}
 
-	assert.Equal(t, ruleHostFoo(), ingress.Spec.Rules[0])
-}
+			created, err := ingressService.AddRule(context.TODO(), &test.newRule, test.tlsSecret)
+			assert.Equal(t, test.err, err)
+			assert.False(t, created)
 
-func TestIngressService_AddRule_NewIngress_CustomIngressClassName(t *testing.T) {
-	var ingress *networking.Ingress
-
-	f := clienttesting.Fake{}
-	f.AddReactor("get", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, errors2.NewNotFound(action.GetResource().GroupResource(), action.(clienttesting.GetAction).GetName())
-	})
-	f.AddReactor("create", "ingresses", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
-		spec := action.(clienttesting.UpdateAction).GetObject().(*networking.Ingress).Spec
-		assert.Len(t, spec.Rules, 1)
-
-		assert.Equal(t, ruleHostFoo(), spec.Rules[0])
-
-		ingress = action.(clienttesting.CreateAction).GetObject().(*networking.Ingress)
-		return true, action.(clienttesting.CreateAction).GetObject(), nil
-	})
-
-	ingressService := IngressService{
-		kubeIngress:      &fake.FakeIngresses{Fake: &fake.FakeNetworkingV1{Fake: &f}},
-		ingressName:      "foo",
-		ingressClassName: "my-ingress-class",
+			assert.Equal(t, test.expectedRules, ingress.Spec.Rules)
+			assert.Equal(t, test.expectedTlsConfiguration, ingress.Spec.TLS)
+		})
 	}
-
-	ruleFoo := ruleHostFoo()
-
-	created, err := ingressService.AddRule(context.TODO(), &ruleFoo)
-	assert.Nil(t, err)
-	assert.True(t, created)
-
-	assert.Equal(t, ruleHostFoo(), ingress.Spec.Rules[0])
-	assert.Equal(t, "my-ingress-class", *ingress.Spec.IngressClassName)
 }
 
 func TestIngressService_DeleteRule(t *testing.T) {
 	tests := []struct {
-		name          string
-		inputRules    []networking.IngressRule
-		serviceName   string
-		servicePort   int32
-		expectedRules []networking.IngressRule
-		expectedError error
+		name              string
+		inputRules        []networking.IngressRule
+		serviceName       string
+		servicePort       int32
+		expectedRules     []networking.IngressRule
+		expectedError     error
+		initialTlsConfig  []networking.IngressTLS
+		expectedTlsConfig []networking.IngressTLS
 	}{
 		{
 			name:          "delete last rule by service name",
@@ -333,6 +353,56 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			expectedRules: []networking.IngressRule{ruleHostFooTwoRules(), ruleHostBar()},
 			expectedError: ErrorIngressRuleNotFound,
 		},
+		//test cases for tls secrets
+		{
+			name:          "do delete tls configuration when host no longer exists (shared secret)",
+			inputRules:    []networking.IngressRule{ruleHostFooTwoRules(), ruleHostBar()},
+			serviceName:   "service-bar",
+			servicePort:   0,
+			expectedRules: []networking.IngressRule{ruleHostFooTwoRules()},
+			expectedError: nil,
+			initialTlsConfig: []networking.IngressTLS{{
+				Hosts:      []string{"foo.com", "bar.com"},
+				SecretName: "my-secret",
+			}},
+			expectedTlsConfig: []networking.IngressTLS{{
+				Hosts:      []string{"foo.com"},
+				SecretName: "my-secret",
+			}},
+		},
+		{
+			name:          "do delete tls configuration when host no longer exists (own secret)",
+			inputRules:    []networking.IngressRule{ruleHostFooTwoRules(), ruleHostBar()},
+			serviceName:   "service-bar",
+			servicePort:   0,
+			expectedRules: []networking.IngressRule{ruleHostFooTwoRules()},
+			expectedError: nil,
+			initialTlsConfig: []networking.IngressTLS{{
+				Hosts:      []string{"foo.com"},
+				SecretName: "my-secret",
+			},
+				{
+					Hosts:      []string{"bar.com"},
+					SecretName: "my-secret2",
+				}},
+			expectedTlsConfig: []networking.IngressTLS{{
+				Hosts:      []string{"foo.com"},
+				SecretName: "my-secret",
+			}},
+		},
+		{
+			name:          "do delete tls configuration when host no longer exists (last secret)",
+			inputRules:    []networking.IngressRule{ruleHostFooTwoRules(), ruleHostBar()},
+			serviceName:   "service-bar",
+			servicePort:   0,
+			expectedRules: []networking.IngressRule{ruleHostFooTwoRules()},
+			expectedError: nil,
+			initialTlsConfig: []networking.IngressTLS{{
+				Hosts:      []string{"bar.com"},
+				SecretName: "my-secret2",
+			}},
+			expectedTlsConfig: nil,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -341,6 +411,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{},
 				Spec: networking.IngressSpec{
 					Rules: test.inputRules,
+					TLS:   test.initialTlsConfig,
 				},
 				Status: networking.IngressStatus{},
 			}
@@ -369,6 +440,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 				assert.True(t, deleted)
 			} else {
 				assert.Equal(t, test.expectedRules, ingress.Spec.Rules)
+				assert.Equal(t, test.expectedTlsConfig, ingress.Spec.TLS)
 			}
 		})
 	}

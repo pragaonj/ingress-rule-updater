@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	networking "k8s.io/api/networking/v1"
-	apperror "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierror "k8s.io/apimachinery/pkg/api/errors"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	networkingtypes "k8s.io/client-go/kubernetes/typed/networking/v1"
+	clientnetworking "k8s.io/client-go/kubernetes/typed/networking/v1"
+	"log"
 )
 
 type IngressService struct {
-	kubeIngress      networkingtypes.IngressInterface
+	kubeIngress      clientnetworking.IngressInterface
 	ingressName      string
 	ingressClassName string
 }
@@ -24,18 +25,18 @@ func NewIngressService(clientset *kubernetes.Clientset, namespace string, ingres
 	}
 }
 
-func (i *IngressService) createIngress(ctx context.Context, ingressRule *networking.IngressRule) error {
+func (i *IngressService) createIngress(ctx context.Context, ingressRule *networking.IngressRule, tlsSecret string) error {
 	ingressClass := &i.ingressClassName
 	if *ingressClass == "" {
 		ingressClass = nil
 	}
 
 	ingress := &networking.Ingress{
-		TypeMeta: metav1.TypeMeta{
+		TypeMeta: meta.TypeMeta{
 			Kind:       "Ingress",
 			APIVersion: "networking.k8s.io/v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: meta.ObjectMeta{
 			Name: i.ingressName,
 		},
 		Spec: networking.IngressSpec{
@@ -44,7 +45,14 @@ func (i *IngressService) createIngress(ctx context.Context, ingressRule *network
 		},
 	}
 
-	_, err := i.kubeIngress.Create(ctx, ingress, metav1.CreateOptions{})
+	if tlsSecret != "" && ingressRule.Host != "" {
+		ingress.Spec.TLS = []networking.IngressTLS{{
+			Hosts:      []string{ingressRule.Host},
+			SecretName: tlsSecret,
+		}}
+	}
+
+	_, err := i.kubeIngress.Create(ctx, ingress, meta.CreateOptions{})
 
 	return err
 }
@@ -75,11 +83,11 @@ func CreateIngressRule(hostname string, path string, pathType networking.PathTyp
 // AddRule configures a new backend rule.
 // If an ingress with the given name i.ingressName exists it will be updated, otherwise a new ingress will be created.
 // Returns if the ingress has been created and an error
-func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.IngressRule) (created bool, err error) {
-	ingress, err := i.kubeIngress.Get(ctx, i.ingressName, metav1.GetOptions{})
-	if apperror.IsNotFound(err) {
+func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.IngressRule, tlsSecret string) (created bool, err error) {
+	ingress, err := i.kubeIngress.Get(ctx, i.ingressName, meta.GetOptions{})
+	if apierror.IsNotFound(err) {
 		// create new ingress if there is no ingress matching the criteria
-		return true, i.createIngress(ctx, ingressRule)
+		return true, i.createIngress(ctx, ingressRule, tlsSecret)
 	} else if err != nil {
 		return false, err
 	}
@@ -99,8 +107,12 @@ func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.In
 			// add rule to for existing host
 			ingress.Spec.Rules[i1].HTTP.Paths = append(ingress.Spec.Rules[i1].HTTP.Paths, ingressRule.HTTP.Paths[0])
 
+			err = addTlsRuleIfSecretIsSupplied(ingress, ingressRule.Host, tlsSecret)
+			if err != nil {
+				return false, err
+			}
 			// try update and return
-			_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
+			_, err = i.kubeIngress.Update(ctx, ingress, meta.UpdateOptions{})
 			return false, err
 		}
 	}
@@ -108,14 +120,19 @@ func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.In
 	// add new host rule if not exiting
 	ingress.Spec.Rules = append(ingress.Spec.Rules, *ingressRule)
 
-	_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
+	err = addTlsRuleIfSecretIsSupplied(ingress, ingressRule.Host, tlsSecret)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = i.kubeIngress.Update(ctx, ingress, meta.UpdateOptions{})
 	return false, err
 }
 
 // DeleteRule removes the rule by service name or service name and port.
 // Returns if the resource has been deleted and an error
 func (i *IngressService) DeleteRule(ctx context.Context, serviceName string, servicePort int32) (deleted bool, err error) {
-	ingress, err := i.kubeIngress.Get(ctx, i.ingressName, metav1.GetOptions{})
+	ingress, err := i.kubeIngress.Get(ctx, i.ingressName, meta.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -140,17 +157,81 @@ func (i *IngressService) DeleteRule(ctx context.Context, serviceName string, ser
 
 	if len(newRules) == 0 {
 		// delete ingress when the last rule is removed
-		return true, i.kubeIngress.Delete(ctx, ingress.Name, metav1.DeleteOptions{})
+		return true, i.kubeIngress.Delete(ctx, ingress.Name, meta.DeleteOptions{})
 	}
 
 	if changed {
 		ingress.Spec.Rules = newRules
-		_, err = i.kubeIngress.Update(ctx, ingress, metav1.UpdateOptions{})
+		deleteTlsRulesForNoLongerExistingHosts(ingress)
+		_, err = i.kubeIngress.Update(ctx, ingress, meta.UpdateOptions{})
 		return false, err
 	}
 
 	return false, ErrorIngressRuleNotFound
 }
 
+func addTlsRuleIfSecretIsSupplied(ingress *networking.Ingress, host string, tlsSecret string) error {
+	if tlsSecret == "" || host == "" {
+		return nil
+	}
+
+	secretIndex := -1
+
+	for i, tlsEntry := range ingress.Spec.TLS {
+		for _, existingHost := range tlsEntry.Hosts {
+			if host == existingHost {
+				if tlsEntry.SecretName != tlsSecret {
+					// do nothing and return error to user
+					return ErrorTlsConfigurationAlreadyExists
+				} else {
+					// do nothing since correct tls configuration already exists
+					return nil
+				}
+			}
+		}
+		if tlsEntry.SecretName == tlsSecret {
+			secretIndex = i
+		}
+	}
+
+	if secretIndex == -1 {
+		ingress.Spec.TLS = append(ingress.Spec.TLS, networking.IngressTLS{
+			Hosts:      []string{host},
+			SecretName: tlsSecret,
+		})
+	} else {
+		ingress.Spec.TLS[secretIndex].Hosts = append(ingress.Spec.TLS[secretIndex].Hosts, host)
+	}
+
+	return nil
+}
+
+func deleteTlsRulesForNoLongerExistingHosts(ingress *networking.Ingress) {
+	var newTlsConfig []networking.IngressTLS
+
+	for i, tlsEntry := range ingress.Spec.TLS {
+		for i2, host := range tlsEntry.Hosts {
+			hostExists := false
+			for _, rule := range ingress.Spec.Rules {
+				if rule.Host == host {
+					hostExists = true
+				}
+			}
+			if !hostExists {
+				ingress.Spec.TLS[i].Hosts[i2] = ingress.Spec.TLS[i].Hosts[len(ingress.Spec.TLS[i].Hosts)-1]
+				ingress.Spec.TLS[i].Hosts = ingress.Spec.TLS[i].Hosts[:len(ingress.Spec.TLS[i].Hosts)-1]
+				break
+			}
+		}
+		log.Printf("%+v\n", ingress.Spec.TLS[i].Hosts)
+		if len(ingress.Spec.TLS[i].Hosts) != 0 {
+			newTlsConfig = append(newTlsConfig, ingress.Spec.TLS[i])
+		}
+	}
+
+	ingress.Spec.TLS = newTlsConfig
+}
+
 var ErrorIngressRuleAlreadyExists = errors.New("ingress rule already exists")
 var ErrorIngressRuleNotFound = errors.New("could not find ingress rule for service")
+var ErrorTlsConfigurationAlreadyExists = errors.New("tls configuration for hostname already exists")
