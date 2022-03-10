@@ -116,7 +116,7 @@ func TestIngressService_AddRuleToExistingIngress(t *testing.T) {
 			existingRules: []networking.IngressRule{ruleHostFoo()},
 			newRule:       ruleHostFoo(),
 			expectedRules: []networking.IngressRule{ruleHostFoo()},
-			err:           ErrorIngressRuleAlreadyExists,
+			err:           ErrIngressRuleAlreadyExists,
 		},
 		{
 			name:          "add rule to exiting ingress with tls secret",
@@ -145,15 +145,15 @@ func TestIngressService_AddRuleToExistingIngress(t *testing.T) {
 			existingRules: []networking.IngressRule{ruleHostFoo()},
 			newRule:       ruleHostFoo(),
 			expectedRules: []networking.IngressRule{ruleHostFoo()},
-			err:           ErrorIngressRuleAlreadyExists,
+			err:           ErrIngressRuleAlreadyExists,
 			tlsSecret:     "my-secret",
 		},
 		{
-			name:          "add rule to existing ingress with existing rule with tls secret returns ErrorTlsConfigurationAlreadyExists",
+			name:          "add rule to existing ingress with existing rule with tls secret returns ErrTlsConfigurationAlreadyExists",
 			existingRules: []networking.IngressRule{ruleHostFoo()},
 			newRule:       ruleHostFoo2(),
 			expectedRules: []networking.IngressRule{ruleHostFoo()},
-			err:           ErrorTlsConfigurationAlreadyExists,
+			err:           ErrTlsConfigurationAlreadyExists,
 			tlsSecret:     "my-secret",
 			initialTlsConfiguration: []networking.IngressTLS{{
 				Hosts:      []string{ruleHostFoo().Host},
@@ -271,7 +271,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			serviceName:   "service-bar",
 			servicePort:   0,
 			expectedRules: []networking.IngressRule{ruleHostFoo()},
-			expectedError: ErrorIngressRuleNotFound,
+			expectedError: ErrIngressRuleNotFound,
 		},
 		{
 			name:          "do not delete last rule by service name and port with invalid port",
@@ -279,7 +279,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			serviceName:   "service-foo",
 			servicePort:   81,
 			expectedRules: []networking.IngressRule{ruleHostFoo()},
-			expectedError: ErrorIngressRuleNotFound,
+			expectedError: ErrIngressRuleNotFound,
 		},
 		{
 			name:          "do not delete last rule by service name and port with invalid name",
@@ -287,7 +287,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			serviceName:   "service-bar",
 			servicePort:   80,
 			expectedRules: []networking.IngressRule{ruleHostFoo()},
-			expectedError: ErrorIngressRuleNotFound,
+			expectedError: ErrIngressRuleNotFound,
 		},
 		// test cases for multiple existing rules
 		{
@@ -312,7 +312,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			serviceName:   "service-fooBar",
 			servicePort:   0,
 			expectedRules: []networking.IngressRule{ruleHostFoo(), ruleHostBar()},
-			expectedError: ErrorIngressRuleNotFound,
+			expectedError: ErrIngressRuleNotFound,
 		},
 		{
 			name:          "do not delete rule by service name and port with invalid name",
@@ -320,7 +320,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			serviceName:   "service-fooBar",
 			servicePort:   80,
 			expectedRules: []networking.IngressRule{ruleHostFoo(), ruleHostBar()},
-			expectedError: ErrorIngressRuleNotFound,
+			expectedError: ErrIngressRuleNotFound,
 		},
 		{
 			name:          "do not delete rule by service name and port with invalid port",
@@ -328,7 +328,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			serviceName:   "service-foo",
 			servicePort:   81,
 			expectedRules: []networking.IngressRule{ruleHostFoo(), ruleHostBar()},
-			expectedError: ErrorIngressRuleNotFound,
+			expectedError: ErrIngressRuleNotFound,
 		},
 		{
 			name:          "delete rule by service name multiple paths 1",
@@ -384,7 +384,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			serviceName:   "service-fooBar",
 			servicePort:   0,
 			expectedRules: []networking.IngressRule{ruleHostFooTwoRules(), ruleHostBar()},
-			expectedError: ErrorIngressRuleNotFound,
+			expectedError: ErrIngressRuleNotFound,
 		},
 		{
 			name:          "do not delete rule by service name multiple paths with invalid port",
@@ -392,7 +392,7 @@ func TestIngressService_DeleteRule(t *testing.T) {
 			serviceName:   "service-foo",
 			servicePort:   81,
 			expectedRules: []networking.IngressRule{ruleHostFooTwoRules(), ruleHostBar()},
-			expectedError: ErrorIngressRuleNotFound,
+			expectedError: ErrIngressRuleNotFound,
 		},
 		//test cases for tls secrets
 		{

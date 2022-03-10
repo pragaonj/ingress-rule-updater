@@ -111,7 +111,7 @@ func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.In
 }
 
 // addPathToExistingHostIfRuleExists checks if the ingress already contains a rule for the given host. If so, the function trys to add a new path to this rule.
-// Will return true if the rule has been added, will throw an ErrorIngressRuleAlreadyExists error if the same rule (same host and path) already exists.
+// Will return true if the rule has been added, will throw an ErrIngressRuleAlreadyExists error if the same rule (same host and path) already exists.
 func addPathToExistingHostIfRuleExists(ingress *networking.Ingress, ingressRule *networking.IngressRule) (bool, error) {
 	for i1, rule := range ingress.Spec.Rules {
 		if rule.Host == ingressRule.Host {
@@ -121,7 +121,7 @@ func addPathToExistingHostIfRuleExists(ingress *networking.Ingress, ingressRule 
 					path.Backend.Service.Name == ingressRule.HTTP.Paths[0].Backend.Service.Name &&
 					path.Backend.Service.Port == ingressRule.HTTP.Paths[0].Backend.Service.Port {
 					// exact same rule already exists
-					return false, ErrorIngressRuleAlreadyExists
+					return false, ErrIngressRuleAlreadyExists
 				}
 			}
 			// add rule to for existing host
@@ -171,7 +171,7 @@ func (i *IngressService) DeleteRule(ctx context.Context, serviceName string, ser
 		return false, err
 	}
 
-	return false, ErrorIngressRuleNotFound
+	return false, ErrIngressRuleNotFound
 }
 
 func addTlsRuleIfSecretIsSupplied(ingress *networking.Ingress, host string, tlsSecret string) error {
@@ -186,7 +186,7 @@ func addTlsRuleIfSecretIsSupplied(ingress *networking.Ingress, host string, tlsS
 			if host == existingHost {
 				if tlsEntry.SecretName != tlsSecret {
 					// do nothing and return error to user
-					return ErrorTlsConfigurationAlreadyExists
+					return ErrTlsConfigurationAlreadyExists
 				} else {
 					// do nothing since correct tls configuration already exists
 					return nil
@@ -236,6 +236,6 @@ func deleteTlsRulesForNoLongerExistingHosts(ingress *networking.Ingress) {
 	ingress.Spec.TLS = newTlsConfig
 }
 
-var ErrorIngressRuleAlreadyExists = errors.New("ingress rule already exists")
-var ErrorIngressRuleNotFound = errors.New("could not find ingress rule for service")
-var ErrorTlsConfigurationAlreadyExists = errors.New("tls configuration for hostname already exists")
+var ErrIngressRuleAlreadyExists = errors.New("ingress rule already exists")
+var ErrIngressRuleNotFound = errors.New("could not find ingress rule for service")
+var ErrTlsConfigurationAlreadyExists = errors.New("tls configuration for hostname already exists")

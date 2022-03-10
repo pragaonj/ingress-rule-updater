@@ -12,7 +12,8 @@ var IngressRuleSetConfigFlags *CliFlags
 var setCmd = &cobra.Command{
 	Use: "set <ingress-name> [flags]",
 	Example: "  kubectl ingress-rule set my-ingress --service foo --port 80 --host *.foo.com" +
-		"\n  kubectl ingress-rule set my-ingress --service foo --port 80 --host example.com --path /foo",
+		"\n  kubectl ingress-rule set my-ingress --service foo --port 80 --host example.com --path /foo" +
+		"\n  kubectl ingress-rule set my-ingress --service foo --port 80 --host example.com --tls my-tls-secret",
 	Short: "Add kubernetes ingress rules via command line. If the ingress does not exist a new ingress will be created.",
 	Long:  `Adds a backend rule to an ingress. If the ingress does not exist a new ingress will be created.`,
 	Args: func(cmd *cobra.Command, args []string) error {
