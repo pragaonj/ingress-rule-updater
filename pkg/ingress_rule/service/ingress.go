@@ -53,7 +53,6 @@ func (i *IngressService) createIngress(ctx context.Context, ingressRule *network
 	}
 
 	_, err := i.kubeIngress.Create(ctx, ingress, meta.CreateOptions{})
-
 	return err
 }
 
@@ -92,7 +91,28 @@ func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.In
 		return false, err
 	}
 
-	// check if there is already a rule for this host
+	// check if there is already a rule for this host (and add the path)
+	exists, err := addPathToExistingHostIfRuleExists(ingress, ingressRule)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		// add new host rule if not existing
+		ingress.Spec.Rules = append(ingress.Spec.Rules, *ingressRule)
+	}
+
+	err = addTlsRuleIfSecretIsSupplied(ingress, ingressRule.Host, tlsSecret)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = i.kubeIngress.Update(ctx, ingress, meta.UpdateOptions{})
+	return false, err
+}
+
+// addPathToExistingHostIfRuleExists checks if the ingress already contains a rule for the given host. If so, the function trys to add a new path to this rule.
+// Will return true if the rule has been added, will throw an ErrorIngressRuleAlreadyExists error if the same rule (same host and path) already exists.
+func addPathToExistingHostIfRuleExists(ingress *networking.Ingress, ingressRule *networking.IngressRule) (bool, error) {
 	for i1, rule := range ingress.Spec.Rules {
 		if rule.Host == ingressRule.Host {
 			for _, path := range rule.HTTP.Paths {
@@ -106,27 +126,11 @@ func (i *IngressService) AddRule(ctx context.Context, ingressRule *networking.In
 			}
 			// add rule to for existing host
 			ingress.Spec.Rules[i1].HTTP.Paths = append(ingress.Spec.Rules[i1].HTTP.Paths, ingressRule.HTTP.Paths[0])
-
-			err = addTlsRuleIfSecretIsSupplied(ingress, ingressRule.Host, tlsSecret)
-			if err != nil {
-				return false, err
-			}
-			// try update and return
-			_, err = i.kubeIngress.Update(ctx, ingress, meta.UpdateOptions{})
-			return false, err
+			return true, nil
 		}
 	}
 
-	// add new host rule if not exiting
-	ingress.Spec.Rules = append(ingress.Spec.Rules, *ingressRule)
-
-	err = addTlsRuleIfSecretIsSupplied(ingress, ingressRule.Host, tlsSecret)
-	if err != nil {
-		return false, err
-	}
-
-	_, err = i.kubeIngress.Update(ctx, ingress, meta.UpdateOptions{})
-	return false, err
+	return false, nil
 }
 
 // DeleteRule removes the rule by service name or service name and port.
