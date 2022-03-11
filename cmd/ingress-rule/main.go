@@ -6,17 +6,18 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"os"
 	"os/signal"
-	"syscall"
 )
 
 func main() {
 	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer ctx.Done()
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT)
+	signal.Notify(sigs, os.Interrupt, os.Kill)
 
 	go func() {
 		<-sigs
-		ctx.Done()
+		cancel()
 	}()
 
 	cli.Execute(ctx)
