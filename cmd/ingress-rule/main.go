@@ -11,12 +11,14 @@ import (
 
 func main() {
 	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer ctx.Done()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT)
 
 	go func() {
 		<-sigs
-		ctx.Done()
+		cancel()
 	}()
 
 	cli.Execute(ctx)
