@@ -14,7 +14,7 @@ var deleteCmd = &cobra.Command{
 	Example: "  kubectl ingress-rule delete my-ingress --service foo" +
 		"\n  kubectl ingress-rule delete my-ingress --service foo --port 80",
 	Short: "Remove kubernetes ingress rules via command line. Deletes the ingress if there are no rules left.",
-	Long:  `Deletes a backend rule from an ingress. Deletes the ingress if there are no rules left. Supports removal by service name or a combination of service name and port number.`,
+	Long:  `Deletes a backend rule from an ingress. Deletes the ingress if there are no rules left. Supports removal by service name or a combination of service name and port number. When deleting the last rule for a host the tls entry will also be removed.`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		// validate ingress-name arg
 		if len(args) < 1 {

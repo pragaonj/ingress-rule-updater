@@ -20,6 +20,7 @@ func RunPlugin(ctx context.Context, configFlags *genericclioptions.ConfigFlags, 
 		return fmt.Errorf("failed to create clientset: %w", err)
 	}
 
+	// check that namespace exits
 	namespace, _, err := configFlags.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
 		return err
@@ -29,35 +30,47 @@ func RunPlugin(ctx context.Context, configFlags *genericclioptions.ConfigFlags, 
 		return err
 	}
 
+	// create new IngressService and execute command
 	ingressService := service.NewIngressService(clientset, namespace, options.IngressName, options.IngressClassName)
-
 	if options.Set {
-		backendRule := service.CreateIngressRule(options.Host, options.Path, options.PathType, options.ServiceName, options.PortNumber)
-
-		created, err := ingressService.AddRule(ctx, backendRule, options.TlsSecret)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("Added rule for host '%s' with path '%s' (path type: '%s') for service '%s' (port: '%d') to ingress '%s'\n",
-			options.Host, options.Path, options.PathType, options.ServiceName, options.PortNumber, options.IngressName)
-		if created {
-			fmt.Printf("Created ingress '%s'\n", options.IngressName)
-		}
+		return addRule(ctx, ingressService, options)
 	} else if options.Delete {
-		deleted, err := ingressService.DeleteRule(ctx, options.ServiceName, options.PortNumber)
-		if err != nil {
-			return err
-		}
+		return deleteRule(ctx, ingressService, options)
+	}
 
-		if options.PortNumber != 0 {
-			fmt.Printf("Removed rule(s) for service '%s' (port: '%d') from ingress '%s'\n", options.ServiceName, options.PortNumber, options.IngressName)
-		} else {
-			fmt.Printf("Removed rule(s) for service '%s' from ingress '%s'\n", options.ServiceName, options.IngressName)
-		}
-		if deleted {
-			fmt.Printf("Deleted ingress '%s'\n", options.IngressName)
-		}
+	return nil
+}
+
+func addRule(ctx context.Context, ingressService *service.IngressService, options *Options) error {
+	backendRule := service.CreateIngressRule(options.Host, options.Path, options.PathType, options.ServiceName, options.PortNumber)
+
+	created, err := ingressService.AddRule(ctx, backendRule, options.TlsSecret)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Added rule for host '%s' with path '%s' (path type: '%s') for service '%s' (port: '%d') to ingress '%s'\n",
+		options.Host, options.Path, options.PathType, options.ServiceName, options.PortNumber, options.IngressName)
+	if created {
+		fmt.Printf("Created ingress '%s'\n", options.IngressName)
+	}
+
+	return nil
+}
+
+func deleteRule(ctx context.Context, ingressService *service.IngressService, options *Options) error {
+	deleted, err := ingressService.DeleteRule(ctx, options.ServiceName, options.PortNumber)
+	if err != nil {
+		return err
+	}
+	if deleted {
+		fmt.Printf("Deleted ingress '%s'\n", options.IngressName)
+	}
+
+	if options.PortNumber != 0 {
+		fmt.Printf("Removed rule(s) for service '%s' (port: '%d') from ingress '%s'\n", options.ServiceName, options.PortNumber, options.IngressName)
+	} else {
+		fmt.Printf("Removed rule(s) for service '%s' from ingress '%s'\n", options.ServiceName, options.IngressName)
 	}
 
 	return nil
