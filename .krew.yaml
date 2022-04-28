@@ -29,6 +29,17 @@ spec:
       bin: "ingress-rule"
     - selector:
         matchLabels:
+          os: darwin
+          arch: arm64
+      {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_darwin_arm64.tar.gz" .TagName | indent 6 }}
+      files:
+        - from: "./ingress-rule"
+          to: "."
+        - from: LICENSE
+          to: "."
+      bin: "ingress-rule"
+    - selector:
+        matchLabels:
           os: windows
           arch: amd64
       {{addURIAndSha "https://github.com/pragaonj/ingress-rule-updater/releases/download/{{ .TagName }}/ingress-rule_{{ .TagName }}_windows_amd64.zip" .TagName | indent 6 }}
