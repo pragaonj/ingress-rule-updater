@@ -45,7 +45,10 @@ func addRule(ctx context.Context, ingressService *service.IngressService, option
 	backendRule := service.CreateIngressRule(options.Host, options.Path, options.PathType, options.ServiceName, options.PortNumber)
 
 	created, err := ingressService.AddRule(ctx, backendRule, options.TlsSecret)
-	if err != nil {
+	if err == service.ErrIngressRuleAlreadyExists {
+		fmt.Println("Doing nothing: Ingress rule already exists")
+		return nil
+	} else if err != nil {
 		return err
 	}
 
